@@ -1,0 +1,307 @@
+<!DOCTYPE html><html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<title>Mini Game Từ Vựng Tiếng Anh</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+*{box-sizing:border-box}
+body{
+  font-family:'Segoe UI',Arial,sans-serif;
+  margin:0;
+  min-height:100vh;
+  background:linear-gradient(135deg,rgba(0,0,0,.55),rgba(0,0,0,.75)), url('https://images.unsplash.com/photo-1604311795833-25a5b38c2f10?auto=format&fit=crop&w=1200&q=80');
+  background-size:cover;
+  background-position:center;
+  color:#fff;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+.hidden{display:none}
+.screen{
+  width:100%;
+  max-width:420px;
+  background:rgba(0,0,0,0.35);
+  backdrop-filter:blur(6px);
+  border-radius:16px;
+  padding:24px 20px 28px;
+  box-shadow:0 20px 40px rgba(0,0,0,.4);
+}
+h2,h3{margin:10px 0 14px}
+input{width:100%;padding:12px;border-radius:10px;border:none;font-size:16px}
+button{width:100%;padding:12px;margin:8px 0;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer}
+#home button{background:#4caf50;color:#fff}
+#game button{background:#03a9f4;color:#fff}
+#leaderboard button{background:#ff9800;color:#000}
+#question{display:flex;flex-wrap:wrap;justify-content:center;margin:14px 0}
+#question span{padding:10px 14px;margin:6px;background:#ff5252;border-radius:10px;font-weight:700;cursor:pointer}
+#question span.used{opacity:.35}
+#timer{font-weight:700;color:#ffeb3b;text-align:center;margin:6px 0 10px}
+#leaderboard ul{padding-left:20px}
+</style>
+</head>
+<body><div id="nickScreen" class="screen">
+  <h2>Nhập nickname</h2>
+  <input id="nicknameInput" placeholder="Tên của bạn" />
+  <button onclick="saveNick()">Bắt đầu</button>
+</div><div id="home" class="screen hidden">
+  <h2>Mini Game</h2>
+  <p>👤 <span id="nick"></span></p>
+  <button onclick="startShuffle()">Xếp chữ</button>
+  <button onclick="startConnect()">Nối từ</button>
+</div><div id="game" class="screen hidden">
+  <h3 id="gameTitle"></h3>
+  <p id="timer">⏱ 15s | 🔥 Combo: <span id="combo">0</span> | ⭐ Điểm: <span id="score">0</span></p>
+  <div id="comboNotify" class="hidden" style="text-align:center;font-size:20px;font-weight:800;color:#ffeb3b;margin-bottom:10px"></div>
+  <div id="question"></div>
+  <p>Đáp án: <span id="answer"></span></p>
+  <button onclick="check()">Kiểm tra</button>
+  <button onclick="removeLast()">Xoá đáp án</button>
+  <button onclick="backHome()">Quay lại</button>
+</div><div id="leaderboard" class="screen hidden">
+  <h3>🏆 Bảng xếp hạng</h3>
+  <ul id="rankList"></ul>
+  <button onclick="showHome()">Về trang chủ</button>
+</div><audio id="correct" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio> <audio id="wrong" src="https://assets.mixkit.co/active_storage/sfx/950/950-preview.mp3"></audio> <audio id="tap" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"></audio> <audio id="comboSound" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3"></audio>
+
+<script>
+// ===== DOM =====
+const nickScreen=document.getElementById('nickScreen');
+const home=document.getElementById('home');
+const game=document.getElementById('game');
+const leaderboard=document.getElementById('leaderboard');
+const question=document.getElementById('question');
+const answerEl=document.getElementById('answer');
+const timerEl=document.getElementById('timer');
+const comboEl=document.getElementById('combo');
+const scoreEl=document.getElementById('score');
+const gameTitle=document.getElementById('gameTitle');
+const comboNotify=document.getElementById('comboNotify');
+
+// ===== STATE =====
+let nick="";
+let answer="";
+let correctAnswer="";
+let combo = 0;
+let score = 0;
+let timer=15;
+let interval=null;
+
+// ===== INIT =====
+if(localStorage.nickname){
+  nick=localStorage.nickname;
+  showHome();
+}
+
+function saveNick(){
+  nick=document.getElementById('nicknameInput').value||'Player';
+  localStorage.nickname=nick;
+  showHome();
+}
+
+function showHome(){
+  nickScreen.classList.add('hidden');
+  game.classList.add('hidden');
+  leaderboard.classList.add('hidden');
+  home.classList.remove('hidden');
+  document.getElementById('nick').innerText=nick;
+}
+
+// ===== TIMER =====
+function startTimer(){
+  clearInterval(interval);
+  timer=15;
+  updateTimer();
+  interval=setInterval(()=>{
+    timer--;
+    updateTimer();
+    if(timer<=0){
+      clearInterval(interval);
+      fail(true);
+    }
+  },1000);
+}
+
+function updateTimer(){
+  timerEl.innerHTML=`⏱ ${timer}s | 🔥 Combo: <span id="combo">${combo}</span> | ⭐ Điểm: <span id="score">${score}</span>`;
+}
+
+// ===== DATA =====
+const shuffleWords=['APPLE','BANANA','ORANGE','SCHOOL','FRIEND','TEACHER','MUSIC','HOMEWORK'];
+const connectPhrases=['go to school','play football','do homework','listen to music','read a book','watch TV'];
+
+// ===== START =====
+function startShuffle(){
+  const word=shuffleWords[Math.floor(Math.random()*shuffleWords.length)];
+  startGame('Xếp chữ',word);
+}
+
+function startConnect(){
+  const phrase=connectPhrases[Math.floor(Math.random()*connectPhrases.length)];
+  startConnectGame('Nối từ',phrase);
+}
+
+function startGame(title,word){
+  answer="";
+  correctAnswer=word;
+  home.classList.add('hidden');
+  leaderboard.classList.add('hidden');
+  game.classList.remove('hidden');
+  gameTitle.innerText=title;
+  answerEl.innerText="";
+  question.innerHTML="";
+
+  word.split('').sort(()=>Math.random()-0.5).forEach(ch=>{
+    const s=document.createElement('span');
+    s.innerText=ch;
+    s.onclick=()=>{
+      if(s.classList.contains('used'))return;
+      tap.currentTime=0;tap.play();
+      s.classList.add('used');
+      answer+=ch;
+      answerEl.innerText=answer;
+    };
+    question.appendChild(s);
+  });
+  startTimer();
+}
+
+function startConnectGame(title,phrase){
+  answer="";
+  correctAnswer=phrase;
+  home.classList.add('hidden');
+  leaderboard.classList.add('hidden');
+  game.classList.remove('hidden');
+  gameTitle.innerText=title;
+  answerEl.innerText="";
+  question.innerHTML="";
+
+  phrase.split(' ').sort(()=>Math.random()-0.5).forEach(w=>{
+    const s=document.createElement('span');
+    s.innerText=w;
+    s.onclick=()=>{
+      if(s.classList.contains('used'))return;
+      tap.currentTime=0;tap.play();
+      s.classList.add('used');
+      answer+=(answer?' ':'')+w;
+      answerEl.innerText=answer;
+    };
+    question.appendChild(s);
+  });
+  startTimer();
+}
+
+// ===== REMOVE =====
+function removeLast(){
+  if(!answer)return;
+  if(correctAnswer.includes(' ')){
+    const parts=answer.split(' ');
+    const removed=parts.pop();
+    answer=parts.join(' ');
+    [...question.children].forEach(s=>{
+      if(s.innerText===removed)s.classList.remove('used');
+    });
+  }else{
+    const removed=answer.slice(-1);
+    answer=answer.slice(0,-1);
+    [...question.children].reverse().some(s=>{
+      if(s.innerText===removed && s.classList.contains('used')){
+        s.classList.remove('used');
+        return true;
+      }
+      return false;
+    });
+  }
+  answerEl.innerText=answer;
+}
+
+// ===== CHECK =====
+function check(){
+  clearInterval(interval);
+  if(answer.trim()===correctAnswer.trim()) success();
+  else fail(false);
+}
+
+function success(){
+  combo++;
+  score += 10 * combo;
+  updateTimer();
+  correct.currentTime=0;correct.play();
+
+  comboNotify.innerText=`🔥 Combo ${combo}`;
+  comboNotify.classList.remove('hidden');
+
+  if([5,10,15,20].includes(combo)){
+    comboNotify.innerText=`🔥 COMBO ${combo}!`;
+    comboSound.currentTime=0;comboSound.play();
+  }
+
+  document.body.style.background='linear-gradient(135deg,#1b5e20,#4caf50)';
+
+  setTimeout(()=>{
+    comboNotify.classList.add('hidden');
+    resetBg();
+    nextQuestion();
+  },800);
+}
+
+function fail(isTimeout){
+  combo=0;
+  updateTimer();
+  if(!isTimeout){ wrong.currentTime=0;wrong.play(); }
+  answerEl.innerText=correctAnswer;
+  document.body.style.background='linear-gradient(135deg,#b71c1c,#f44336)';
+
+  setTimeout(()=>{
+    resetBg();
+    nextQuestion();
+  },1200);
+}
+
+function nextQuestion(){
+  if(gameTitle.innerText==='Xếp chữ') startShuffle();
+  else startConnect();
+}
+
+function resetBg(){
+  document.body.style.background='linear-gradient(135deg,rgba(0,0,0,.55),rgba(0,0,0,.75)), url("https://images.unsplash.com/photo-1604311795833-25a5b38c2f10?auto=format&fit=crop&w=1200&q=80")';
+}
+
+function backHome(){
+  clearInterval(interval);
+  saveScore();
+  showLeaderboard();
+}
+
+function saveScore(){
+  if(!nick) return;
+  const data = JSON.parse(localStorage.rank||'[]');
+  const existing = data.find(d=>d.nick===nick);
+  if(existing) existing.score = Math.max(existing.score, score);
+  else data.push({nick, score});
+  localStorage.rank = JSON.stringify(data);
+}
+
+function showLeaderboard(){
+  home.classList.add('hidden');
+  game.classList.add('hidden');
+  leaderboard.classList.remove('hidden');
+  const list = document.getElementById('rankList');
+  list.innerHTML='';
+  const data = JSON.parse(localStorage.rank||'[]').sort((a,b)=>b.score-a.score);
+  data.forEach(d=>{
+    const li=document.createElement('li');
+    li.innerText = `${d.nick} — ${d.score} điểm`;
+    list.appendChild(li);
+  });
+}
+
+// ===== TESTS =====
+console.assert(typeof saveNick==='function');
+console.assert(typeof startShuffle==='function');
+console.assert(typeof startConnect==='function');
+console.assert(typeof removeLast==='function');
+console.assert(typeof check==='function');
+console.assert(document.getElementById('leaderboard')!==null);
+</script></body>
+  </html>
