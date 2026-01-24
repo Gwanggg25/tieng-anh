@@ -30,15 +30,12 @@ button{cursor:pointer}
 
 #letters span{
   display:inline-block;padding:14px;margin:6px;
-  background:#333;border-radius:10px;
+  background:#333;border-radius:12px;
   font-weight:bold;font-size:18px;cursor:pointer
 }
 #letters span.used{opacity:.3}
 
-.progress{
-  height:8px;background:#333;border-radius:6px;
-  overflow:hidden;margin:10px 0
-}
+.progress{height:8px;background:#333;border-radius:6px;overflow:hidden;margin:10px 0}
 .progress div{height:100%;width:0%;background:#4caf50}
 #correctText{color:#ffeb3b;font-weight:bold;margin-top:6px}
 </style>
@@ -46,37 +43,24 @@ button{cursor:pointer}
 
 <body>
 
-<!-- AUDIO -->
-<audio id="tapSound" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"></audio>
-<audio id="correctSound" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
-<audio id="wrongSound" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/950/950-preview.mp3"></audio>
+<audio id="tapSound" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"></audio>
+<audio id="correctSound" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
+<audio id="wrongSound" src="https://assets.mixkit.co/active_storage/sfx/950/950-preview.mp3"></audio>
 
-<!-- LOGIN -->
 <div id="login" class="box">
   <h2>👤 Nhập tên</h2>
   <input id="playerName" placeholder="Tên của bạn">
   <button class="green" onclick="saveName()">Vào game</button>
 </div>
 
-<!-- HOME -->
 <div id="home" class="box hidden">
   <h2>🎮 Mini Game</h2>
   <p>👤 <b id="showName"></b></p>
-  <button class="green" onclick="showShuffleLevel()">Xếp chữ</button>
+  <button class="green" onclick="startShuffle()">Xếp chữ</button>
   <button class="green" onclick="startConnect()">Nối từ</button>
   <button class="orange" onclick="showRank()">🏆 Bảng xếp hạng</button>
 </div>
 
-<!-- CHỌN MỨC ĐỘ XẾP CHỮ -->
-<div id="level" class="box hidden">
-  <h3>🧠 Chọn mức độ</h3>
-  <button class="green" onclick="startShuffle('easy')">Dễ</button>
-  <button class="green" onclick="startShuffle('medium')">Trung bình</button>
-  <button class="green" onclick="startShuffle('hard')">Khó</button>
-  <button class="gray" onclick="backHome()">Quay lại</button>
-</div>
-
-<!-- GAME -->
 <div id="game" class="box hidden">
   <h3 id="title"></h3>
   <div class="progress"><div id="bar"></div></div>
@@ -89,48 +73,28 @@ button{cursor:pointer}
   <button class="gray" onclick="backHome()">Quay lại</button>
 </div>
 
-<!-- RANK -->
 <div id="rank" class="box hidden">
-  <h3>🏆 Bảng xếp hạng</h3>
+  <h3>🏆 Bảng xếp hạng (Offline)</h3>
   <ol id="rankList"></ol>
   <button class="gray" onclick="backHome()">Quay lại</button>
 </div>
 
 <script>
-/* ===== DATA ===== */
-const shuffleEasy=[
-"TOURISM","SOLUTION","REMOVE","LITTER","ADVICE",
-"CITADEL","SCENERY","PERFORM","HERITAGE","PROTEST"
+const shuffleWords=[
+"TOURISM","TEMPERATURE","ESCAPE","LITTER","PROTEST","REQUIRE","SOLUTION",
+"WILDFIRE","CHALLENGE","REMOVE","FRIGHTENED","HERITAGE","PERFORM","SCENERY",
+"COMPETITION","APPRECIATE","ADVICE","NARROW","CITADEL","HARSH"
 ];
-const shuffleMedium=[
-"REQUIRE","ESCAPE","HARSH","CHALLENGE","NARROW"
-];
-const shuffleHard=[
-"TEMPERATURE","FRIGHTENED","COMPETITION","APPRECIATE","WILDFIRE"
-];
-
 const connectWords=[
-"GLOBAL WARMING","SEA LEVEL","CLIMATE CHANGE","COMBINE WITH",
-"EFFECT ON","FLOATING MARKET","LOCAL AUTHORITY",
-"TOURIST DESTINATION","SUSTAINABLE HABITAT","PROUD OF"
+"GLOBAL WARMING","SEA LEVEL","CLIMATE CHANGE","COMBINE WITH","EFFECT ON",
+"FLOATING MARKET","LOCAL AUTHORITY","TOURIST DESTINATION",
+"SUSTAINABLE HABITAT","PROUD OF"
 ];
 
-let answer="",correct="",score=0,combo=0,done=0;
-let player="",playerID="",mode="",currentList=[];
-let audioUnlocked=false;
+let used=[],answer="",correct="",score=0,combo=0,done=0;
+let player="",playerID="";
 
 const $=id=>document.getElementById(id);
-
-/* ===== SOUND FIX ===== */
-function playSound(id){
-  const a=$(id);
-  if(!audioUnlocked){
-    a.play().then(()=>{audioUnlocked=true;a.pause();a.currentTime=0});
-    return;
-  }
-  a.currentTime=0;
-  a.play().catch(()=>{});
-}
 
 /* LOGIN */
 function saveName(){
@@ -146,84 +110,66 @@ if(localStorage.player){
   showHome();
 }
 function showHome(){
-  hideAll();
+  $("login").classList.add("hidden");
+  $("game").classList.add("hidden");
+  $("rank").classList.add("hidden");
   $("home").classList.remove("hidden");
   $("showName").innerText=`${player} #${playerID}`;
 }
-function hideAll(){
-  ["login","home","level","game","rank"].forEach(id=>$ (id).classList.add("hidden"));
-}
-
-/* LEVEL */
-function showShuffleLevel(){
-  hideAll();
-  $("level").classList.remove("hidden");
-}
-
-/* START */
-function startShuffle(lv){
-  mode="shuffle";
-  if(lv==="easy") currentList=[...shuffleEasy];
-  if(lv==="medium") currentList=[...shuffleMedium];
-  if(lv==="hard") currentList=[...shuffleHard];
-  startGame("Xếp chữ");
-}
-
-function startConnect(){
-  mode="connect";
-  currentList=[...connectWords];
-  startGame("Nối từ");
-}
 
 /* GAME */
-function startGame(title){
+function startShuffle(){startGame("Xếp chữ",shuffleWords)}
+function startConnect(){startGame("Nối từ",connectWords)}
+
+function startGame(name,list){
   $("correctText").innerText="";
-  correct=currentList[Math.floor(Math.random()*currentList.length)];
+  const pool=list.filter(w=>!used.includes(w));
+  if(pool.length===0) used=[];
+  correct=pool[Math.floor(Math.random()*pool.length)];
+  used.push(correct);
+
   answer="";
   $("letters").innerHTML="";
   $("answer").innerText="";
-  $("title").innerText=title;
+  $("title").innerText=name;
 
-  const parts=mode==="shuffle"?correct.split(""):correct.split(" ");
-  parts.sort(()=>Math.random()-0.5).forEach(c=>{
+  const parts=name==="Xếp chữ"?correct.split(""):correct.split(" ");
+  parts.sort(()=>Math.random()-.5).forEach(c=>{
     const s=document.createElement("span");
     s.innerText=c;
     s.onclick=()=>{
       if(s.classList.contains("used"))return;
-      playSound("tapSound");
+      tapSound.currentTime=0;tapSound.play();
       s.classList.add("used");
-      answer+=(mode==="shuffle"?c:(answer?" ":"")+c);
+      answer+=(name==="Xếp chữ"?c:(answer?" ":"")+c);
       $("answer").innerText=answer;
     };
     $("letters").appendChild(s);
   });
 
-  hideAll();
+  $("home").classList.add("hidden");
+  $("rank").classList.add("hidden");
   $("game").classList.remove("hidden");
 }
 
 function check(){
   if(answer.trim()===correct){
     combo++;score+=10*combo;done++;
-    playSound("correctSound");
-    document.body.style.background="#1b5e20";
+    correctSound.currentTime=0;correctSound.play();
   }else{
     combo=0;
-    playSound("wrongSound");
+    wrongSound.currentTime=0;wrongSound.play();
     $("correctText").innerText=`❌ Đáp án đúng: ${correct}`;
-    document.body.style.background="#7f0000";
   }
   update();
-  setTimeout(()=>{
-    document.body.style.background="#121212";
-    startGame($("title").innerText);
-  },900);
+  setTimeout(()=>startGame($("title").innerText,
+    $("title").innerText==="Xếp chữ"?shuffleWords:connectWords),900);
 }
 
 function update(){
   $("score").innerText=score;
   $("combo").innerText=combo;
-  $("bar").style.width=Math.min(100,done*5)+"%";
+  $("bar").style.width=Math.floor(done/shuffleWords.length*100)+"%";
 }
 
 function removeLast(){
@@ -231,13 +177,21 @@ function removeLast(){
   [...$("letters").children].forEach(s=>s.classList.remove("used"));
 }
 
-/* RANK */
+/* ===== FIX BẢNG XẾP HẠNG ===== */
 function saveRank(){
-  const data=JSON.parse(localStorage.rank||"[]");
-  data.push({name:player,id:playerID,score});
+  let data=JSON.parse(localStorage.rank||"[]");
+
+  const found=data.find(d=>d.id===playerID);
+  if(found){
+    if(score>found.score) found.score=score;
+  }else{
+    data.push({name:player,id:playerID,score});
+  }
+
   data.sort((a,b)=>b.score-a.score);
   localStorage.rank=JSON.stringify(data.slice(0,48));
 }
+
 function showRank(){
   saveRank();
   const list=$("rankList");
@@ -247,9 +201,10 @@ function showRank(){
     li.innerText=`#${i+1} | ${d.name} #${d.id} — ${d.score}đ`;
     list.appendChild(li);
   });
-  hideAll();
+  $("home").classList.add("hidden");
   $("rank").classList.remove("hidden");
 }
+
 function backHome(){showHome()}
 </script>
 </body>
