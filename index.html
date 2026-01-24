@@ -4,40 +4,47 @@
 <meta charset="UTF-8">
 <title>Mini Game Từ Vựng</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
 *{box-sizing:border-box}
 body{
   margin:0;min-height:100vh;
   font-family:Arial,sans-serif;
-  background:#121212;color:#fff;
-  display:flex;justify-content:center;align-items:center
+  color:#fff;
+  display:flex;justify-content:center;align-items:center;
+  background:
+    linear-gradient(rgba(0,0,0,.6),rgba(0,0,0,.6)),
+    url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee");
+  background-size:cover;
+  background-position:center;
+  transition:.3s;
+}
+body.correct{
+  background:
+    linear-gradient(rgba(0,120,0,.7),rgba(0,120,0,.7)),
+    url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee");
+}
+body.wrong{
+  background:
+    linear-gradient(rgba(150,0,0,.7),rgba(150,0,0,.7)),
+    url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee");
 }
 .hidden{display:none}
-.box{
-  width:100%;max-width:420px;
-  background:#1e1e1e;
-  padding:20px;border-radius:16px
-}
-button,input{
-  width:100%;padding:12px;margin:6px 0;
-  border:none;border-radius:12px;font-size:16px
-}
+.box{max-width:420px;width:100%;background:rgba(30,30,30,.92);padding:20px;border-radius:16px}
+button,input{width:100%;padding:14px;margin:6px 0;border:none;border-radius:14px;font-size:16px}
 button{cursor:pointer}
 .green{background:#4caf50;color:#fff}
 .blue{background:#2196f3;color:#fff}
-.orange{background:#ff9800}
 .gray{background:#555;color:#fff}
-
 #letters span{
-  display:inline-block;padding:14px;margin:6px;
-  background:#333;border-radius:12px;
-  font-weight:bold;font-size:18px;cursor:pointer
+  display:inline-block;padding:18px;margin:6px;
+  background:#333;border-radius:14px;
+  font-weight:bold;font-size:20px;cursor:pointer
 }
 #letters span.used{opacity:.3}
-
-.progress{height:8px;background:#333;border-radius:6px;overflow:hidden;margin:10px 0}
+.progress{height:8px;background:#333;border-radius:6px;overflow:hidden}
 .progress div{height:100%;width:0%;background:#4caf50}
-#correctText{color:#ffeb3b;font-weight:bold;margin-top:6px}
+#correctText{color:#ffeb3b;font-weight:bold}
 </style>
 </head>
 
@@ -46,19 +53,27 @@ button{cursor:pointer}
 <audio id="tapSound" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"></audio>
 <audio id="correctSound" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
 <audio id="wrongSound" src="https://assets.mixkit.co/active_storage/sfx/950/950-preview.mp3"></audio>
+<audio id="bgMusic" loop src="https://assets.mixkit.co/music/preview/mixkit-dreaming-big-31.mp3"></audio>
 
 <div id="login" class="box">
   <h2>👤 Nhập tên</h2>
   <input id="playerName" placeholder="Tên của bạn">
-  <button class="green" onclick="saveName()">Vào game</button>
+  <button class="green" onclick="enterGame()">Vào game</button>
 </div>
 
 <div id="home" class="box hidden">
   <h2>🎮 Mini Game</h2>
   <p>👤 <b id="showName"></b></p>
-  <button class="green" onclick="startShuffle()">Xếp chữ</button>
+  <button class="green" onclick="showLevel()">Xếp chữ</button>
   <button class="green" onclick="startConnect()">Nối từ</button>
-  <button class="orange" onclick="showRank()">🏆 Bảng xếp hạng</button>
+</div>
+
+<div id="level" class="box hidden">
+  <h3>🧠 Chọn mức độ</h3>
+  <button class="green" onclick="startShuffle('easy')">Dễ</button>
+  <button class="green" onclick="startShuffle('medium')">Trung bình</button>
+  <button class="green" onclick="startShuffle('hard')">Khó</button>
+  <button class="gray" onclick="backHome()">Quay lại</button>
 </div>
 
 <div id="game" class="box hidden">
@@ -69,143 +84,104 @@ button{cursor:pointer}
   <p>Đáp án: <b id="answer"></b></p>
   <p id="correctText"></p>
   <button class="blue" onclick="check()">Kiểm tra</button>
-  <button class="gray" onclick="removeLast()">Xoá</button>
-  <button class="gray" onclick="backHome()">Quay lại</button>
-</div>
-
-<div id="rank" class="box hidden">
-  <h3>🏆 Bảng xếp hạng (Offline)</h3>
-  <ol id="rankList"></ol>
+  <button class="gray" onclick="clearAnswer()">Xoá</button>
   <button class="gray" onclick="backHome()">Quay lại</button>
 </div>
 
 <script>
-const shuffleWords=[
-"TOURISM","TEMPERATURE","ESCAPE","LITTER","PROTEST","REQUIRE","SOLUTION",
-"WILDFIRE","CHALLENGE","REMOVE","FRIGHTENED","HERITAGE","PERFORM","SCENERY",
-"COMPETITION","APPRECIATE","ADVICE","NARROW","CITADEL","HARSH"
-];
-const connectWords=[
-"GLOBAL WARMING","SEA LEVEL","CLIMATE CHANGE","COMBINE WITH","EFFECT ON",
-"FLOATING MARKET","LOCAL AUTHORITY","TOURIST DESTINATION",
-"SUSTAINABLE HABITAT","PROUD OF"
-];
+const shuffleEasy=["TOURISM","SOLUTION","REMOVE","LITTER","ADVICE","CITADEL","SCENERY","PERFORM","HERITAGE","PROTEST"];
+const shuffleMedium=["REQUIRE","ESCAPE","HARSH","CHALLENGE","NARROW"];
+const shuffleHard=["TEMPERATURE","FRIGHTENED","COMPETITION","APPRECIATE","WILDFIRE"];
+const connectWords=["GLOBAL WARMING","SEA LEVEL","CLIMATE CHANGE","COMBINE WITH","EFFECT ON","FLOATING MARKET","LOCAL AUTHORITY","TOURIST DESTINATION","SUSTAINABLE HABITAT","PROUD OF"];
 
-let used=[],answer="",correct="",score=0,combo=0,done=0;
-let player="",playerID="";
-
+let pool=[],correct="",answer="";
+let score=0,combo=0,done=0;
+let mode="",player="";
 const $=id=>document.getElementById(id);
 
-/* LOGIN */
-function saveName(){
+function shuffle(arr){return arr.sort(()=>Math.random()-0.5)}
+
+function unlockAudio(){
+  ["tapSound","correctSound","wrongSound","bgMusic"].forEach(id=>{
+    $(id).play().then(()=>$(id).pause()).catch(()=>{});
+  });
+}
+
+function enterGame(){
+  unlockAudio();
+  $("bgMusic").play();
   player=$("playerName").value||"Player";
-  playerID=Math.floor(1000+Math.random()*9000);
-  localStorage.player=player;
-  localStorage.playerID=playerID;
-  showHome();
-}
-if(localStorage.player){
-  player=localStorage.player;
-  playerID=localStorage.playerID;
-  showHome();
-}
-function showHome(){
-  $("login").classList.add("hidden");
-  $("game").classList.add("hidden");
-  $("rank").classList.add("hidden");
-  $("home").classList.remove("hidden");
-  $("showName").innerText=`${player} #${playerID}`;
+  $("showName").innerText=player;
+  hideAll();$("home").classList.remove("hidden");
 }
 
-/* GAME */
-function startShuffle(){startGame("Xếp chữ",shuffleWords)}
-function startConnect(){startGame("Nối từ",connectWords)}
+function showLevel(){hideAll();$("level").classList.remove("hidden")}
+function startShuffle(lv){
+  mode="shuffle";
+  pool=shuffle([... (lv==="easy"?shuffleEasy:lv==="medium"?shuffleMedium:shuffleHard) ]);
+  startGame("Xếp chữ");
+}
+function startConnect(){
+  mode="connect";
+  pool=shuffle([...connectWords]);
+  startGame("Nối từ");
+}
 
-function startGame(name,list){
+function startGame(title){
+  document.body.className="";
   $("correctText").innerText="";
-  const pool=list.filter(w=>!used.includes(w));
-  if(pool.length===0) used=[];
-  correct=pool[Math.floor(Math.random()*pool.length)];
-  used.push(correct);
-
+  if(pool.length===0) return backHome();
+  correct=pool.pop();
   answer="";
   $("letters").innerHTML="";
   $("answer").innerText="";
-  $("title").innerText=name;
+  $("title").innerText=title;
 
-  const parts=name==="Xếp chữ"?correct.split(""):correct.split(" ");
-  parts.sort(()=>Math.random()-.5).forEach(c=>{
+  const parts=mode==="shuffle"?correct.split(""):correct.split(" ");
+  shuffle(parts).forEach(c=>{
     const s=document.createElement("span");
     s.innerText=c;
     s.onclick=()=>{
       if(s.classList.contains("used"))return;
-      tapSound.currentTime=0;tapSound.play();
+      $("tapSound").play();
       s.classList.add("used");
-      answer+=(name==="Xếp chữ"?c:(answer?" ":"")+c);
+      answer+=(mode==="shuffle"?c:(answer?" ":"")+c);
       $("answer").innerText=answer;
     };
     $("letters").appendChild(s);
   });
 
-  $("home").classList.add("hidden");
-  $("rank").classList.add("hidden");
-  $("game").classList.remove("hidden");
+  hideAll();$("game").classList.remove("hidden");
 }
 
 function check(){
+  document.body.className="";
   if(answer.trim()===correct){
     combo++;score+=10*combo;done++;
-    correctSound.currentTime=0;correctSound.play();
+    $("correctSound").play();
+    document.body.classList.add("correct");
   }else{
     combo=0;
-    wrongSound.currentTime=0;wrongSound.play();
-    $("correctText").innerText=`❌ Đáp án đúng: ${correct}`;
+    $("wrongSound").play();
+    $("correctText").innerText="❌ Đáp án đúng: "+correct;
+    document.body.classList.add("wrong");
   }
   update();
-  setTimeout(()=>startGame($("title").innerText,
-    $("title").innerText==="Xếp chữ"?shuffleWords:connectWords),900);
+  setTimeout(()=>startGame($("title").innerText),700);
 }
 
 function update(){
   $("score").innerText=score;
   $("combo").innerText=combo;
-  $("bar").style.width=Math.floor(done/shuffleWords.length*100)+"%";
+  $("bar").style.width=Math.min(100,done*5)+"%";
 }
-
-function removeLast(){
-  answer="";$("answer").innerText="";
+function clearAnswer(){
+  answer="";
+  $("answer").innerText="";
   [...$("letters").children].forEach(s=>s.classList.remove("used"));
 }
-
-/* ===== FIX BẢNG XẾP HẠNG ===== */
-function saveRank(){
-  let data=JSON.parse(localStorage.rank||"[]");
-
-  const found=data.find(d=>d.id===playerID);
-  if(found){
-    if(score>found.score) found.score=score;
-  }else{
-    data.push({name:player,id:playerID,score});
-  }
-
-  data.sort((a,b)=>b.score-a.score);
-  localStorage.rank=JSON.stringify(data.slice(0,48));
-}
-
-function showRank(){
-  saveRank();
-  const list=$("rankList");
-  list.innerHTML="";
-  JSON.parse(localStorage.rank||"[]").forEach((d,i)=>{
-    const li=document.createElement("li");
-    li.innerText=`#${i+1} | ${d.name} #${d.id} — ${d.score}đ`;
-    list.appendChild(li);
-  });
-  $("home").classList.add("hidden");
-  $("rank").classList.remove("hidden");
-}
-
-function backHome(){showHome()}
+function hideAll(){["login","home","level","game"].forEach(id=>$(id).classList.add("hidden"))}
+function backHome(){hideAll();$("home").classList.remove("hidden")}
 </script>
 </body>
 </html>
