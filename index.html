@@ -5,6 +5,10 @@
 <title>Mini Game Từ Vựng</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 <style>
 *{box-sizing:border-box}
 body{
@@ -45,29 +49,35 @@ button{cursor:pointer}
 .progress{height:8px;background:#333;border-radius:6px;overflow:hidden}
 .progress div{height:100%;width:0%;background:#4caf50}
 #correctText{color:#ffeb3b;font-weight:bold}
+#rankList{padding-left:18px}
 </style>
 </head>
 
 <body>
 
+<!-- AUDIO -->
 <audio id="tapSound" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"></audio>
 <audio id="correctSound" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
 <audio id="wrongSound" src="https://assets.mixkit.co/active_storage/sfx/950/950-preview.mp3"></audio>
 <audio id="bgMusic" loop src="https://assets.mixkit.co/music/preview/mixkit-dreaming-big-31.mp3"></audio>
 
+<!-- LOGIN -->
 <div id="login" class="box">
   <h2>👤 Nhập tên</h2>
   <input id="playerName" placeholder="Tên của bạn">
   <button class="green" onclick="enterGame()">Vào game</button>
 </div>
 
+<!-- HOME -->
 <div id="home" class="box hidden">
   <h2>🎮 Mini Game</h2>
   <p>👤 <b id="showName"></b></p>
   <button class="green" onclick="showLevel()">Xếp chữ</button>
   <button class="green" onclick="startConnect()">Nối từ</button>
+  <button class="blue" onclick="showRank()">🏆 Xếp hạng</button>
 </div>
 
+<!-- LEVEL -->
 <div id="level" class="box hidden">
   <h3>🧠 Chọn mức độ</h3>
   <button class="green" onclick="startShuffle('easy')">Dễ</button>
@@ -76,6 +86,7 @@ button{cursor:pointer}
   <button class="gray" onclick="backHome()">Quay lại</button>
 </div>
 
+<!-- GAME -->
 <div id="game" class="box hidden">
   <h3 id="title"></h3>
   <div class="progress"><div id="bar"></div></div>
@@ -88,42 +99,62 @@ button{cursor:pointer}
   <button class="gray" onclick="backHome()">Quay lại</button>
 </div>
 
+<!-- RANK -->
+<div id="rank" class="box hidden">
+  <h3>🏆 TOP 48</h3>
+  <ol id="rankList"></ol>
+  <button class="gray" onclick="backHome()">Quay lại</button>
+</div>
+
 <script>
-const shuffleEasy=["TOURISM","SOLUTION","REMOVE","LITTER","ADVICE","CITADEL","SCENERY","PERFORM","HERITAGE","PROTEST"];
-const shuffleMedium=["REQUIRE","ESCAPE","HARSH","CHALLENGE","NARROW"];
-const shuffleHard=["TEMPERATURE","FRIGHTENED","COMPETITION","APPRECIATE","WILDFIRE"];
-const connectWords=["GLOBAL WARMING","SEA LEVEL","CLIMATE CHANGE","COMBINE WITH","EFFECT ON","FLOATING MARKET","LOCAL AUTHORITY","TOURIST DESTINATION","SUSTAINABLE HABITAT","PROUD OF"];
+/* ===== FIREBASE CONFIG (THAY CỦA M) ===== */
+const firebaseConfig = {
+  apiKey: "API_KEY",
+  authDomain: "tieng-anh-d4c26.firebaseapp.com",
+  databaseURL: "https://tieng-anh-d4c26-default-rtdb.firebaseio.com",
+  projectId: "tieng-anh-d4c26",
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* ===== DATA ===== */
+const shuffleEasy=["TOURISM","SOLUTION","REMOVE","LITTER","ADVICE"];
+const shuffleMedium=["REQUIRE","ESCAPE","HARSH","CHALLENGE"];
+const shuffleHard=["TEMPERATURE","FRIGHTENED","COMPETITION"];
+const connectWords=["GLOBAL WARMING","SEA LEVEL","CLIMATE CHANGE","PROUD OF"];
 
 let pool=[],correct="",answer="";
 let score=0,combo=0,done=0;
-let mode="",player="";
+let mode="",player="",uid="";
 const $=id=>document.getElementById(id);
 
-function shuffle(arr){return arr.sort(()=>Math.random()-0.5)}
-
+/* ===== AUDIO ===== */
 function unlockAudio(){
   ["tapSound","correctSound","wrongSound","bgMusic"].forEach(id=>{
     $(id).play().then(()=>$(id).pause()).catch(()=>{});
   });
 }
 
+/* ===== LOGIN ===== */
 function enterGame(){
   unlockAudio();
   $("bgMusic").play();
   player=$("playerName").value||"Player";
+  uid=Date.now()+"_"+Math.floor(Math.random()*9999);
   $("showName").innerText=player;
   hideAll();$("home").classList.remove("hidden");
 }
 
+/* ===== GAME FLOW ===== */
 function showLevel(){hideAll();$("level").classList.remove("hidden")}
 function startShuffle(lv){
   mode="shuffle";
-  pool=shuffle([... (lv==="easy"?shuffleEasy:lv==="medium"?shuffleMedium:shuffleHard) ]);
+  pool=[...(lv==="easy"?shuffleEasy:lv==="medium"?shuffleMedium:shuffleHard)].sort(()=>Math.random()-0.5);
   startGame("Xếp chữ");
 }
 function startConnect(){
   mode="connect";
-  pool=shuffle([...connectWords]);
+  pool=[...connectWords].sort(()=>Math.random()-0.5);
   startGame("Nối từ");
 }
 
@@ -138,7 +169,7 @@ function startGame(title){
   $("title").innerText=title;
 
   const parts=mode==="shuffle"?correct.split(""):correct.split(" ");
-  shuffle(parts).forEach(c=>{
+  parts.sort(()=>Math.random()-0.5).forEach(c=>{
     const s=document.createElement("span");
     s.innerText=c;
     s.onclick=()=>{
@@ -163,7 +194,7 @@ function check(){
   }else{
     combo=0;
     $("wrongSound").play();
-    $("correctText").innerText="❌ Đáp án đúng: "+correct;
+    $("correctText").innerText="❌ "+correct;
     document.body.classList.add("wrong");
   }
   update();
@@ -175,13 +206,47 @@ function update(){
   $("combo").innerText=combo;
   $("bar").style.width=Math.min(100,done*5)+"%";
 }
+
 function clearAnswer(){
   answer="";
   $("answer").innerText="";
   [...$("letters").children].forEach(s=>s.classList.remove("used"));
 }
-function hideAll(){["login","home","level","game"].forEach(id=>$(id).classList.add("hidden"))}
-function backHome(){hideAll();$("home").classList.remove("hidden")}
+
+function hideAll(){["login","home","level","game","rank"].forEach(id=>$(id).classList.add("hidden"))}
+function backHome(){
+  saveScore();
+  hideAll();$("home").classList.remove("hidden");
+}
+
+/* ===== REALTIME RANK ===== */
+function saveScore(){
+  if(!player) return;
+  db.ref("rank/"+uid).set({
+    name: player,
+    score: score,
+    time: Date.now()
+  });
+}
+
+function showRank(){
+  hideAll();$("rank").classList.remove("hidden");
+  db.ref("rank")
+    .orderByChild("score")
+    .limitToLast(48)
+    .on("value",snap=>{
+      const list=$("rankList");
+      list.innerHTML="";
+      const data=[];
+      snap.forEach(s=>data.push(s.val()));
+      data.sort((a,b)=>b.score-a.score);
+      data.forEach((d,i)=>{
+        const li=document.createElement("li");
+        li.innerText=`${d.name} — ${d.score}đ`;
+        list.appendChild(li);
+      });
+    });
+}
 </script>
 </body>
 </html>
