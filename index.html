@@ -5,10 +5,6 @@
 <title>Mini Game Từ Vựng</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- FIREBASE -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
 <style>
 *{box-sizing:border-box}
 body{
@@ -23,8 +19,16 @@ body{
   background-position:center;
   transition:.3s;
 }
-body.correct{background:linear-gradient(rgba(0,120,0,.7),rgba(0,120,0,.7)),url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee")}
-body.wrong{background:linear-gradient(rgba(150,0,0,.7),rgba(150,0,0,.7)),url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee")}
+body.correct{
+  background:
+    linear-gradient(rgba(0,120,0,.7),rgba(0,120,0,.7)),
+    url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee");
+}
+body.wrong{
+  background:
+    linear-gradient(rgba(150,0,0,.7),rgba(150,0,0,.7)),
+    url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee");
+}
 .hidden{display:none}
 .box{max-width:420px;width:100%;background:rgba(30,30,30,.92);padding:20px;border-radius:16px}
 button,input{width:100%;padding:14px;margin:6px 0;border:none;border-radius:14px;font-size:16px}
@@ -32,7 +36,11 @@ button{cursor:pointer}
 .green{background:#4caf50;color:#fff}
 .blue{background:#2196f3;color:#fff}
 .gray{background:#555;color:#fff}
-#letters span{display:inline-block;padding:18px;margin:6px;background:#333;border-radius:14px;font-weight:bold;font-size:20px;cursor:pointer}
+#letters span{
+  display:inline-block;padding:18px;margin:6px;
+  background:#333;border-radius:14px;
+  font-weight:bold;font-size:20px;cursor:pointer
+}
 #letters span.used{opacity:.3}
 .progress{height:8px;background:#333;border-radius:6px;overflow:hidden}
 .progress div{height:100%;width:0%;background:#4caf50}
@@ -58,7 +66,6 @@ button{cursor:pointer}
   <p>👤 <b id="showName"></b></p>
   <button class="green" onclick="showLevel()">Xếp chữ</button>
   <button class="green" onclick="startConnect()">Nối từ</button>
-  <button class="blue" onclick="showRank()">🏆 Xếp hạng</button>
 </div>
 
 <div id="level" class="box hidden">
@@ -81,37 +88,18 @@ button{cursor:pointer}
   <button class="gray" onclick="backHome()">Quay lại</button>
 </div>
 
-<div id="rank" class="box hidden">
-  <h3>🏆 TOP 48</h3>
-  <ol id="rankList"></ol>
-  <button class="gray" onclick="backHome()">Quay lại</button>
-</div>
-
 <script>
-/* ===== FIREBASE CONFIG – ĐÃ GẮN CHO M ===== */
-const firebaseConfig = {
-  apiKey: "AIzaSyAu8h1mjEJkURRI7agXiziySfqQEwGGwt8",
-  authDomain: "tieng-anh-d4c26.firebaseapp.com",
-  databaseURL: "https://tieng-anh-d4c26-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "tieng-anh-d4c26",
-  storageBucket: "tieng-anh-d4c26.firebasestorage.app",
-  messagingSenderId: "252485206184",
-  appId: "1:252485206184:web:841c6067144c981bcc829d",
-  measurementId: "G-KBCXERQMSM"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-const shuffleEasy=["TOURISM","SOLUTION","REMOVE","LITTER","ADVICE"];
-const shuffleMedium=["REQUIRE","ESCAPE","HARSH","CHALLENGE"];
-const shuffleHard=["TEMPERATURE","FRIGHTENED","COMPETITION"];
-const connectWords=["GLOBAL WARMING","SEA LEVEL","CLIMATE CHANGE","PROUD OF"];
+const shuffleEasy=["TOURISM","SOLUTION","REMOVE","LITTER","ADVICE","CITADEL","SCENERY","PERFORM","HERITAGE","PROTEST"];
+const shuffleMedium=["REQUIRE","ESCAPE","HARSH","CHALLENGE","NARROW"];
+const shuffleHard=["TEMPERATURE","FRIGHTENED","COMPETITION","APPRECIATE","WILDFIRE"];
+const connectWords=["GLOBAL WARMING","SEA LEVEL","CLIMATE CHANGE","COMBINE WITH","EFFECT ON","FLOATING MARKET","LOCAL AUTHORITY","TOURIST DESTINATION","SUSTAINABLE HABITAT","PROUD OF"];
 
 let pool=[],correct="",answer="";
 let score=0,combo=0,done=0;
-let mode="",player="",uid="";
+let mode="",player="";
 const $=id=>document.getElementById(id);
+
+function shuffle(arr){return arr.sort(()=>Math.random()-0.5)}
 
 function unlockAudio(){
   ["tapSound","correctSound","wrongSound","bgMusic"].forEach(id=>{
@@ -123,7 +111,6 @@ function enterGame(){
   unlockAudio();
   $("bgMusic").play();
   player=$("playerName").value||"Player";
-  uid=Date.now()+"_"+Math.floor(Math.random()*9999);
   $("showName").innerText=player;
   hideAll();$("home").classList.remove("hidden");
 }
@@ -131,12 +118,12 @@ function enterGame(){
 function showLevel(){hideAll();$("level").classList.remove("hidden")}
 function startShuffle(lv){
   mode="shuffle";
-  pool=[...(lv==="easy"?shuffleEasy:lv==="medium"?shuffleMedium:shuffleHard)].sort(()=>Math.random()-0.5);
+  pool=shuffle([... (lv==="easy"?shuffleEasy:lv==="medium"?shuffleMedium:shuffleHard) ]);
   startGame("Xếp chữ");
 }
 function startConnect(){
   mode="connect";
-  pool=[...connectWords].sort(()=>Math.random()-0.5);
+  pool=shuffle([...connectWords]);
   startGame("Nối từ");
 }
 
@@ -151,7 +138,7 @@ function startGame(title){
   $("title").innerText=title;
 
   const parts=mode==="shuffle"?correct.split(""):correct.split(" ");
-  parts.sort(()=>Math.random()-0.5).forEach(c=>{
+  shuffle(parts).forEach(c=>{
     const s=document.createElement("span");
     s.innerText=c;
     s.onclick=()=>{
@@ -176,7 +163,7 @@ function check(){
   }else{
     combo=0;
     $("wrongSound").play();
-    $("correctText").innerText="❌ "+correct;
+    $("correctText").innerText="❌ Đáp án đúng: "+correct;
     document.body.classList.add("wrong");
   }
   update();
@@ -188,47 +175,13 @@ function update(){
   $("combo").innerText=combo;
   $("bar").style.width=Math.min(100,done*5)+"%";
 }
-
 function clearAnswer(){
   answer="";
   $("answer").innerText="";
   [...$("letters").children].forEach(s=>s.classList.remove("used"));
 }
-
-function hideAll(){["login","home","level","game","rank"].forEach(id=>$(id).classList.add("hidden"))}
-function backHome(){
-  saveScore();
-  hideAll();$("home").classList.remove("hidden");
-}
-
-/* ===== RANK REALTIME ===== */
-function saveScore(){
-  if(!player) return;
-  db.ref("rank/"+uid).set({
-    name: player,
-    score: score,
-    time: Date.now()
-  });
-}
-
-function showRank(){
-  hideAll();$("rank").classList.remove("hidden");
-  db.ref("rank")
-    .orderByChild("score")
-    .limitToLast(48)
-    .on("value",snap=>{
-      const list=$("rankList");
-      list.innerHTML="";
-      const data=[];
-      snap.forEach(s=>data.push(s.val()));
-      data.sort((a,b)=>b.score-a.score);
-      data.forEach(d=>{
-        const li=document.createElement("li");
-        li.innerText=`${d.name} — ${d.score}đ`;
-        list.appendChild(li);
-      });
-    });
-}
+function hideAll(){["login","home","level","game"].forEach(id=>$(id).classList.add("hidden"))}
+function backHome(){hideAll();$("home").classList.remove("hidden")}
 </script>
 </body>
-    </html>
+</html>
